@@ -58,16 +58,12 @@ function isFilterOutDir(input) {
  */
 function generateLocalPathReg(localPath) {
   const pathArr = localPath.split(DEFAULT_SEP)
-  const len = pathArr.length
-  const regStr = pathArr
-    .map((part, index) => {
-      if (index === len - 1) {
-        return `${part}`
-      } else {
-        return `\\.?(${part})?`
-      }
-    })
-    .join(`\\${DEFAULT_SEP}?`)
+  // the file must be matched exactly
+  const file = pathArr.pop()
+  const regStr =
+    pathArr.map(part => `\\.*?(${part})?`).join(`\\${DEFAULT_SEP}?`) +
+    `\\${DEFAULT_SEP}` +
+    file
   return new RegExp(regStr, 'g')
 }
 
