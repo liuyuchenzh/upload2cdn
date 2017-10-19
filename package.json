@@ -1,0 +1,14 @@
+{
+  "name": "upload2cdn",
+  "version": "0.0.1",
+  "description": "upload files to cdn",
+  "main": "index.js",
+  "author": "Yuchen Liu <liuyuchenzh@163.com>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "fs-extra": "^4.0.2"
+  },
+  "repository": "https://github.com/liuyuchenzh/upload2cdn.git",
+  "bugs": "https://github.com/liuyuchenzh/upload2cdn.git/issues"
+}
