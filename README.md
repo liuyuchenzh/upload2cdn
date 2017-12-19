@@ -53,14 +53,14 @@ const cdn = {
 ```js
 const { upload } = require("upload2cdn")
 const cdn = require("some-cdn-package")
-  new upload(cdn, {
-      src: path.resolve("./src"), // where your html file would emit to (with reference to local js/css files)
-      dist: path.resolve('./dist'), // only use this when there is a need to separate origin outputs with cdn ones
-      assets: path.resolve('./src'), // where all assets lie, most likely the same as src property
-      urlCb(input) { return input }, // give the power to play with cdn url before emit
-      resolve: ['html'], // typeof file needed to match; default to ['html']
-      onFinish() {} // anything you want to run after the uploading and replacing process
-  })
+upload(cdn, {
+  src: path.resolve("./src"), // where your html file would emit to (with reference to local js/css files)
+  dist: path.resolve('./dist'), // only use this when there is a need to separate origin outputs with cdn ones
+  assets: path.resolve('./src'), // where all assets lie, most likely the same as src property
+  urlCb(input) { return input }, // give the power to play with cdn url before emit
+  resolve: ['html'], // typeof file needed to match; default to ['html']
+  onFinish() {} // anything you want to run after the uploading and replacing process
+})
 ```
 
 > notice: src, dist, assets work best with absolute path!
