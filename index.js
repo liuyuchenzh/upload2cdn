@@ -51,6 +51,14 @@ function isFilterOutDir(input) {
   return FILTER_OUT_DIR.includes(input)
 }
 
+function generateLog(name) {
+  return function log(input, mode = 'log') {
+    console[mode](`[${name}]: `, input)
+  }
+}
+
+const log = generateLog(name)
+
 /**
  * produce RegExp to match local path
  * @param {string} localPath
@@ -135,12 +143,12 @@ function isType(type) {
  */
 function processCdnUrl(entries, cb) {
   if (typeof cb !== 'function')
-    return console.error(`[${name}]: urlCb is not function`)
+    log(`urlCb is not function`, 'error')
   return entries.map(pair => {
     // pair[1] should be cdn url
     pair[1] = cb(pair[1])
     if (typeof pair[1] !== 'string')
-      console.error(`[${name}]: the return result of urlCb is not string`)
+      log(`the return result of urlCb is not string`, 'error')
     return pair
   })
 }
@@ -228,7 +236,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  */
 
 async function upload(cdn, option) {
-  console.log(`[${name}]: start...`)
+  log('start...')
   const $option = Object.assign({}, DEFAULT_OPTION, option)
   // extra treatment for cdnUrl
   const urlCb = $option.urlCb
@@ -253,8 +261,15 @@ async function upload(cdn, option) {
   // replace css
   // now css ref to img/font with cdn path
   // meanwhile upload chunk files to save time
-  console.log(`[${name}]: uploading img + font ...`)
-  const imgAndFontPairs = await cdn.upload([...img, ...font])
+  log(`uploading img + font ...`)
+  let imgAndFontPairs
+  try {
+    imgAndFontPairs = await cdn.upload([...img, ...font])
+  } catch (e) {
+    log('error occurred')
+    log(e, 'error')
+    return
+  }
 
   // update css files with cdn img/font
   css.forEach(name => {
@@ -262,14 +277,21 @@ async function upload(cdn, option) {
   })
 
   // concat js + css + img
-  console.log(`[${name}]: uploading js + css`)
+  log(`uploading js + css`)
   const adjustedFiles = [...js, ...css, ...img]
   const findFileInRoot = gatherFileIn($option.src)
   const tplFiles = resolveList.reduce((last, type) => {
     last = last.concat(findFileInRoot(type))
     return last
   }, [])
-  const jsCssImgPair = await cdn.upload(adjustedFiles)
+  let jsCssImgPair
+  try {
+    jsCssImgPair = await cdn.upload(adjustedFiles)
+  } catch(e) {
+    log('error occurred')
+    log(e, 'error')
+    return
+  }
   const localCdnPair = Object.entries(jsCssImgPair)
   tplFiles.forEach(filePath => {
     simpleReplace(filePath, mapSrcToDist(filePath, srcRoot, distRoot))(
@@ -278,7 +300,7 @@ async function upload(cdn, option) {
   })
   // run onFinish if it is a valid function
   onFinish && typeof onFinish === 'function' && onFinish()
-  console.log(`[${name}]: all done`)
+  log(`all done`)
 }
 
 module.exports = {
