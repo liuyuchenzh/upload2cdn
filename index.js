@@ -220,8 +220,6 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  */
 
 /**
- * webpack upload plugin
- * early version need more work
  * custom cdn module, need to have an upload API, return a Promise with structured response
  * like {localPath: cdnPath}
  * @param {object} cdn
