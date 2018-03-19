@@ -59,13 +59,14 @@ upload(cdn, {
   assets: path.resolve('./src'), // where all assets lie, most likely the same as src property
   urlCb(input) { return input }, // give the power to play with cdn url before emit
   resolve: ['html'], // typeof file needed to match; default to ['html']
-  onFinish() {} // anything you want to run after the uploading and replacing process
+  onFinish() {}, // anything you want to run after the uploading and replacing process
+  replaceInJs: false // wether to match local path of img/font (contained in assets directory) in js files and replace them with cdn ones
 })
 ```
 
-> notice: src, dist, assets work best with absolute path!
+> `src`, `dist`, `assets` work best with absolute path!
 
-> `src` and `assets` are only two required
+`src`, `dist` and `assets` are only three required
 
 ## License
 
