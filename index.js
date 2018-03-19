@@ -274,7 +274,7 @@ async function upload(cdn, option) {
   }
 
   // update css + js files with cdn img/font
-  [...css, ...js].forEach(name => {
+  css.forEach(name => {
     simpleReplace(name)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb))
   })
 
