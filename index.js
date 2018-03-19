@@ -29,7 +29,8 @@ const DEFAULT_OPTION = {
   resolve: ['html'],
   urlCb(input) {
     return input
-  }
+  },
+  replaceInJs: false
 }
 
 // 1. gather html file
@@ -70,8 +71,8 @@ function generateLocalPathReg(localPath) {
   const file = pathArr.pop()
   const regStr =
     pathArr.map(part => `\\.*?(${part})?`).join(`\\${DEFAULT_SEP}?`) +
-    `\\${DEFAULT_SEP}` +
-    file
+    `\\${DEFAULT_SEP}?` +
+    file.replace(/\./, '\\.')
   return new RegExp(regStr, 'g')
 }
 
@@ -244,6 +245,8 @@ async function upload(cdn, option) {
   const distRoot = resolve($option.dist)
   // onFinish callback
   const onFinish = $option.onFinish
+  // whether replace img/font path in js files
+  const replaceInJs = $option.replaceInJs
 
   // all assets including js/css/img
   const assets = resolve($option.assets)
@@ -274,7 +277,8 @@ async function upload(cdn, option) {
   }
 
   // update css + js files with cdn img/font
-  css.forEach(name => {
+  const replaceFiles = replaceInJs ? [...js, ...css] : css
+  replaceFiles.forEach(name => {
     simpleReplace(name)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb))
   })
 
