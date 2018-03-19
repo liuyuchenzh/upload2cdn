@@ -86,9 +86,9 @@ function generateLocalPathReg(localPath) {
 function simpleReplace(srcPath, distPath = srcPath) {
   const srcFile = fs.readFileSync(srcPath, 'utf-8')
   return function savePair(localCdnPair) {
-    const ret = localCdnPair.reduce((last, file) => {
-      const localPath = normalize(file[0])
-      const cdnPath = file[1]
+    const ret = localCdnPair.reduce((last, [local, cdn]) => {
+      const localPath = normalize(local)
+      const cdnPath = cdn
       const localPathReg = generateLocalPathReg(localPath)
       last = last.replace(localPathReg, match => cdnPath)
       return last
@@ -144,12 +144,12 @@ function isType(type) {
 function processCdnUrl(entries, cb) {
   if (typeof cb !== 'function')
     log(`urlCb is not function`, 'error')
-  return entries.map(pair => {
+  return entries.map(([local, cdn]) => {
     // pair[1] should be cdn url
-    pair[1] = cb(pair[1])
-    if (typeof pair[1] !== 'string')
+    const useableCdn = cb(cdn)
+    if (typeof useableCdn !== 'string')
       log(`the return result of urlCb is not string`, 'error')
-    return pair
+    return [local, useableCdn]
   })
 }
 
@@ -203,8 +203,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
         last.font = last.font.concat(files)
       }
       return last
-    },
-    {
+    }, {
       all: [],
       img: [],
       js: [],
@@ -252,7 +251,12 @@ async function upload(cdn, option) {
 
   const assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE)
 
-  const { img, css, js, font } = assetsFiles
+  const {
+    img,
+    css,
+    js,
+    font
+  } = assetsFiles
 
   // upload img/font
   // find img/font in css
@@ -269,8 +273,8 @@ async function upload(cdn, option) {
     return
   }
 
-  // update css files with cdn img/font
-  css.forEach(name => {
+  // update css + js files with cdn img/font
+  [...css, ...js].forEach(name => {
     simpleReplace(name)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb))
   })
 
@@ -285,7 +289,7 @@ async function upload(cdn, option) {
   let jsCssImgPair
   try {
     jsCssImgPair = await cdn.upload(adjustedFiles)
-  } catch(e) {
+  } catch (e) {
     log('error occurred')
     log(e, 'error')
     return
