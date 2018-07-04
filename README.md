@@ -1,3 +1,5 @@
+# upload2cdn
+
 ## Intro
 
 Simple tool to upload files to cdn
@@ -22,13 +24,13 @@ In fact, it actually depends on such service.<br>
 `upload2cdn` relies on the existence a `cdn` object with an `upload` method described as below.
 
 ```typescript
-type cdnUrl = string;
+type cdnUrl = string
 interface cdnRes {
   [localPath: string]: cdnUrl
 }
 // this is what cdn package looks like
 interface cdn {
-  upload: (localPaths: string[]) => Promise<cdnRes>;
+  upload: (localPaths: string[]) => Promise<cdnRes>
 }
 ```
 
@@ -36,9 +38,9 @@ If typescript syntax is unfamiliar, here is another description in vanilla javas
 
 ```js
 /**
-* @param {string[]} localPath: list of paths of local files
-* @return Promise<cdnRes>: resolved Promise with structure like {localPath: cdnUrl}
-*/
+ * @param {string[]} localPath: list of paths of local files
+ * @return Promise<cdnRes>: resolved Promise with structure like {localPath: cdnUrl}
+ */
 function upload(localPath) {
   // code
 }
@@ -49,18 +51,21 @@ const cdn = {
 
 ## Usage
 
-
 ```js
-const { upload } = require("upload2cdn")
-const cdn = require("some-cdn-package")
+const { upload } = require('upload2cdn')
+const cdn = require('some-cdn-package')
 upload(cdn, {
-  src: path.resolve("./src"), // where your html file would emit to (with reference to local js/css files)
+  src: path.resolve('./src'), // where your html file would emit to (with reference to local js/css files)
   dist: path.resolve('./dist'), // only use this when there is a need to separate origin outputs with cdn ones
   assets: path.resolve('./src'), // where all assets lie, most likely the same as src property
-  urlCb(input) { return input }, // give the power to play with cdn url before emit
+  urlCb(input) {
+    return input
+  }, // give the power to play with cdn url before emit
   resolve: ['html'], // typeof file needed to match; default to ['html']
   onFinish() {}, // anything you want to run after the uploading and replacing process
-  replaceInJs: false // wether to match local path of img/font (contained in assets directory) in js files and replace them with cdn ones
+  replaceInJs: true, // wether to match local path of img/font (contained in assets directory) in js files and replace them with cdn ones
+  enableCache: false, // switch to enable cache file of upload result
+  cacheLocation: __dirname // place to emit cache file
 })
 ```
 
