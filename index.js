@@ -1,6 +1,7 @@
 const fs = require('fs')
 const fse = require('fs-extra')
 const path = require('path')
+const { compatCache, parallel } = require('y-upload-utils')
 const name = require('./package.json').name
 const DEFAULT_SEP = '/'
 const FILTER_OUT_DIR = [
@@ -21,7 +22,8 @@ const ASSET_TYPE = [
   'woff',
   'woff2',
   'ttf',
-  'otf'
+  'otf',
+  'eot'
 ]
 const DEFAULT_OPTION = {
   src: resolve('src'),
@@ -143,8 +145,7 @@ function isType(type) {
  * @returns {[string, string][] | void}
  */
 function processCdnUrl(entries, cb) {
-  if (typeof cb !== 'function')
-    log(`urlCb is not function`, 'error')
+  if (typeof cb !== 'function') log(`urlCb is not function`, 'error')
   return entries.map(([local, cdn]) => {
     // pair[1] should be cdn url
     const useableCdn = cb(cdn)
@@ -158,22 +159,18 @@ function mapSrcToDist(srcFilePath, srcRoot, distRoot) {
   return srcFilePath.replace(srcRoot, distRoot)
 }
 
-const isJpg = isType('jpg')
-const isPng = isType('png')
-const isGif = isType('gif')
-const isWebp = isType('webp')
+const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+const fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot']
 const isCss = isType('css')
 const isJs = isType('js')
-const isWoff = isType('woff')
-const isWoff2 = isType('woff2')
-const isTtf = isType('ttf')
-const isOtf = isType('otf')
-const isSvg = isType('svg')
+const isHTML = isType('html')
 
 function isFont(path) {
-  return (
-    isWoff(path) || isWoff2(path) || isTtf(path) || isOtf(path) || isSvg(path)
-  )
+  return fontTypeArr.some(type => isType(type)(path))
+}
+
+function isImg(path) {
+  return imgTypeArr.some(type => isType(type)(path))
 }
 
 /**
@@ -187,14 +184,9 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
     (last, type) => {
       const files = gatherFn(type)
       if (!files.length) return last
-      const location = files[0]
+      const [location] = files
       last.all = last.all.concat(files)
-      if (
-        isGif(location) ||
-        isPng(location) ||
-        isJpg(location) ||
-        isWebp(location)
-      ) {
+      if (isImg(location)) {
         last.img = last.img.concat(files)
       } else if (isCss(location)) {
         last.css = last.css.concat(files)
@@ -204,7 +196,8 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
         last.font = last.font.concat(files)
       }
       return last
-    }, {
+    },
+    {
       all: [],
       img: [],
       js: [],
@@ -229,37 +222,49 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  * @param {string} option.assets
  * @param {string=} option.dist
  * @param {urlCb=} option.urlCb
+ * @param {object=} option.passToCdn
+ * @param {boolean=} option.enableCache
+ * @param {string=} option.cacheLocation
  * @param {function=} option.onFinish
- * provide information about what the source html directory and compiled html directory
  */
-
-async function upload(cdn, option) {
+async function upload(cdn, option = {}) {
+  const {
+    src = resolve('src'),
+    dist = resolve('src'),
+    assets = resolve('src'),
+    resolve: resolveList = ['html'],
+    urlCb = input => input,
+    replaceInJs = true,
+    onFinish = () => {},
+    passToCdn,
+    enableCache = false,
+    cacheLocation
+  } = option
+  if (!enableCache && cacheLocation) {
+    log(
+      `WARNING! 'cacheLocation' provided while haven't set 'enableCache' to true`
+    )
+    log(`WARNING! This won't enable cache`)
+  }
   log('start...')
-  const $option = Object.assign({}, DEFAULT_OPTION, option)
-  // extra treatment for cdnUrl
-  const urlCb = $option.urlCb
-  // could process other type of files rather than limited to html
-  const resolveList = $option.resolve
-  // get absolute path of src and dist directory
-  const srcRoot = resolve($option.src)
-  const distRoot = resolve($option.dist)
-  // onFinish callback
-  const onFinish = $option.onFinish
-  // whether replace img/font path in js files
-  const replaceInJs = $option.replaceInJs
-
   // all assets including js/css/img
-  const assets = resolve($option.assets)
   const gatherFileInAssets = gatherFileIn(assets)
-
   const assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE)
 
-  const {
-    img,
-    css,
-    js,
-    font
-  } = assetsFiles
+  const rawCdn = {
+    upload(files) {
+      return cdn.upload(files, passToCdn)
+    }
+  }
+
+  const useableCdn = enableCache
+    ? compatCache(parallel(rawCdn), {
+        passToCdn,
+        cacheLocation
+      })
+    : parallel(rawCdn)
+
+  const { img, css, js, font } = assetsFiles
 
   // upload img/font
   // find img/font in css
@@ -269,7 +274,7 @@ async function upload(cdn, option) {
   log(`uploading img + font ...`)
   let imgAndFontPairs
   try {
-    imgAndFontPairs = await cdn.upload([...img, ...font])
+    imgAndFontPairs = await useableCdn.upload([...img, ...font])
   } catch (e) {
     log('error occurred')
     log(e, 'error')
@@ -285,14 +290,14 @@ async function upload(cdn, option) {
   // concat js + css + img
   log(`uploading js + css`)
   const adjustedFiles = [...js, ...css, ...img]
-  const findFileInRoot = gatherFileIn($option.src)
+  const findFileInRoot = gatherFileIn(src)
   const tplFiles = resolveList.reduce((last, type) => {
     last = last.concat(findFileInRoot(type))
     return last
   }, [])
   let jsCssImgPair
   try {
-    jsCssImgPair = await cdn.upload(adjustedFiles)
+    jsCssImgPair = await useableCdn.upload(adjustedFiles)
   } catch (e) {
     log('error occurred')
     log(e, 'error')
@@ -300,12 +305,12 @@ async function upload(cdn, option) {
   }
   const localCdnPair = Object.entries(jsCssImgPair)
   tplFiles.forEach(filePath => {
-    simpleReplace(filePath, mapSrcToDist(filePath, srcRoot, distRoot))(
+    simpleReplace(filePath, mapSrcToDist(filePath, src, dist))(
       processCdnUrl(localCdnPair, urlCb)
     )
   })
   // run onFinish if it is a valid function
-  onFinish && typeof onFinish === 'function' && onFinish()
+  onFinish()
   log(`all done`)
 }
 
