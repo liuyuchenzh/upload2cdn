@@ -264,7 +264,8 @@ async function upload(cdn, option = {}) {
   const useableCdn = enableCache
     ? compatCache(parallel(rawCdn), {
         passToCdn,
-        cacheLocation
+        cacheLocation,
+        beforeUpload
       })
     : parallel(rawCdn)
 
