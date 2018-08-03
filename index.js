@@ -25,15 +25,11 @@ const ASSET_TYPE = [
   'otf',
   'eot'
 ]
-const DEFAULT_OPTION = {
-  src: resolve('src'),
-  dist: resolve('src'),
-  resolve: ['html'],
-  urlCb(input) {
-    return input
-  },
-  replaceInJs: false
-}
+
+// read file
+const read = location => fs.readFileSync(location, 'utf-8')
+// write file
+const write = location => content => fs.writeFileSync(location, content)
 
 // 1. gather html file
 // 2. gather production file
@@ -163,7 +159,6 @@ const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp']
 const fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot']
 const isCss = isType('css')
 const isJs = isType('js')
-const isHTML = isType('html')
 
 function isFont(path) {
   return fontTypeArr.some(type => isType(type)(path))
@@ -238,7 +233,8 @@ async function upload(cdn, option = {}) {
     onFinish = () => {},
     passToCdn,
     enableCache = false,
-    cacheLocation
+    cacheLocation,
+    beforeUpload
   } = option
   if (!enableCache && cacheLocation) {
     log(
@@ -253,6 +249,14 @@ async function upload(cdn, option = {}) {
 
   const rawCdn = {
     upload(files) {
+      // reason not using default paramter it to reduce IO
+      if (beforeUpload && typeof beforeUpload === 'function' && !enableCache) {
+        files.forEach(file => {
+          const content = read(file)
+          const afterContent = beforeUpload(content, file)
+          if (content !== afterContent) write(file)(afterContent)
+        })
+      }
       return cdn.upload(files, passToCdn)
     }
   }

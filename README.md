@@ -65,7 +65,8 @@ upload(cdn, {
   onFinish() {}, // anything you want to run after the uploading and replacing process
   replaceInJs: true, // wether to match local path of img/font (contained in assets directory) in js files and replace them with cdn ones
   enableCache: false, // switch to enable cache file of upload result
-  cacheLocation: __dirname // place to emit cache file
+  cacheLocation: __dirname, // place to emit cache file
+  beforeUpload(content, fileLocation) {}, // invoked before upload. Compression can be done here. Argument content is String type and you need to return compressed/updated content in String type too
 })
 ```
 
