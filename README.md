@@ -67,6 +67,8 @@ upload(cdn, {
   enableCache: false, // switch to enable cache file of upload result
   cacheLocation: __dirname, // place to emit cache file
   beforeUpload(content, fileLocation) {}, // invoked before upload. Compression can be done here. Argument content is String type and you need to return compressed/updated content in String type too
+  sliceLimit: 10, // uploading files is not done by once. Using `sliceLimit` you can limit the number of files being uploaded at the same time
+  files: [], // when providing files, it basically means overriding 'assets' fields, and only use the files you provide as assets
 })
 ```
 

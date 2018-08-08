@@ -1,7 +1,11 @@
 const fs = require('fs')
 const fse = require('fs-extra')
 const path = require('path')
-const { compatCache, parallel } = require('y-upload-utils')
+const {
+  compatCache,
+  parallel,
+  beforeUpload: beforeProcess
+} = require('y-upload-utils')
 const name = require('./package.json').name
 const DEFAULT_SEP = '/'
 const FILTER_OUT_DIR = [
@@ -170,7 +174,7 @@ function isImg(path) {
 
 /**
  * collect everything
- * @param {function(string)}gatherFn
+ * @param {function(string)} gatherFn
  * @param {string[]} typeList
  * @returns {{all: string[], js: string[], css: string[], img: string[], font: string[]}}
  */
@@ -221,6 +225,9 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  * @param {boolean=} option.enableCache
  * @param {string=} option.cacheLocation
  * @param {function=} option.onFinish
+ * @param {function=} option.beforeUpload
+ * @param {number=} option.sliceLimit
+ * @param {string[]=} option.files
  */
 async function upload(cdn, option = {}) {
   const {
@@ -234,7 +241,9 @@ async function upload(cdn, option = {}) {
     passToCdn,
     enableCache = false,
     cacheLocation,
-    beforeUpload
+    beforeUpload,
+    sliceLimit,
+    files = []
   } = option
   if (!enableCache && cacheLocation) {
     log(
@@ -244,30 +253,46 @@ async function upload(cdn, option = {}) {
   }
   log('start...')
   // all assets including js/css/img
-  const gatherFileInAssets = gatherFileIn(assets)
-  const assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE)
+  let assetsFiles = []
+  // if providing files field use files over src
+  if (files.length) {
+    const isFilesValid = files.every(file => path.isAbsolute(file))
+    if (!isFilesValid) {
+      return log(
+        `WARNING! 'files' filed contains non-absolute path! Replace with absolute ones!`
+      )
+    }
+    assetsFiles = autoGatherFilesInAsset(
+      type => files.filter(file => path.extname(file) === `.${type}`),
+      ASSET_TYPE
+    )
+  } else {
+    const gatherFileInAssets = gatherFileIn(assets)
+    assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE)
+  }
 
+  // closure with passToCdn
   const rawCdn = {
     upload(files) {
-      // reason not using default paramter it to reduce IO
-      if (beforeUpload && typeof beforeUpload === 'function' && !enableCache) {
-        files.forEach(file => {
-          const content = read(file)
-          const afterContent = beforeUpload(content, file)
-          if (content !== afterContent) write(file)(afterContent)
-        })
-      }
       return cdn.upload(files, passToCdn)
     }
   }
 
-  const useableCdn = enableCache
-    ? compatCache(parallel(rawCdn), {
+  // wrap with parallel
+  const paralleledCdn = parallel(rawCdn, { sliceLimit })
+
+  // wrap with cache
+  const wrappedCdn = enableCache
+    ? compatCache(paralleledCdn, {
         passToCdn,
         cacheLocation,
         beforeUpload
       })
-    : parallel(rawCdn)
+    : paralleledCdn
+
+  // wrap with beforeProcess
+  // use beforeUpload properly
+  const useableCdn = beforeProcess(wrappedCdn, beforeUpload)
 
   const { img, css, js, font } = assetsFiles
 
