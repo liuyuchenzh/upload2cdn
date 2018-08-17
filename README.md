@@ -104,7 +104,7 @@ Using cache to speed up, aka skip some uploading work.
 
 Place to put cache file.
 
-Use this only when to want to manage cache file by VCS, which is unlikely.
+Use this only when you want to manage the cache file by VCS, which is unlikely.
 
 ### [onFinish]: () => any
 
