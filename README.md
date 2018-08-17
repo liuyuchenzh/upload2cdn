@@ -16,8 +16,9 @@ npm install upload2cdn
 
 ## Notice
 
-This tool does not provide a service as uploading to cdn.<br>
-In fact, it actually depends on such service.<br>
+This tool does not provide a service as uploading to cdn.
+
+In fact, it actually depends on such service.
 
 ## Dependency
 
@@ -55,26 +56,87 @@ const cdn = {
 const { upload } = require('upload2cdn')
 const cdn = require('some-cdn-package')
 upload(cdn, {
-  src: path.resolve('./src'), // where your html file would emit to (with reference to local js/css files)
-  dist: path.resolve('./dist'), // only use this when there is a need to separate origin outputs with cdn ones
-  assets: path.resolve('./src'), // where all assets lie, most likely the same as src property
-  urlCb(input) {
-    return input
-  }, // give the power to play with cdn url before emit
-  resolve: ['html'], // typeof file needed to match; default to ['html']
-  onFinish() {}, // anything you want to run after the uploading and replacing process
-  replaceInJs: true, // wether to match local path of img/font (contained in assets directory) in js files and replace them with cdn ones
-  enableCache: false, // switch to enable cache file of upload result
-  cacheLocation: __dirname, // place to emit cache file
-  beforeUpload(content, fileLocation) {}, // invoked before upload. Compression can be done here. Argument content is String type and you need to return compressed/updated content in String type too
-  sliceLimit: 10, // uploading files is not done by once. Using `sliceLimit` you can limit the number of files being uploaded at the same time
-  files: [], // when providing files, it basically means overriding 'assets' fields, and only use the files you provide as assets
+  src: path.resolve('./src')
+  dist: path.resolve('./dist')
+  assets: path.resolve('./src')
 })
 ```
 
 > `src`, `dist`, `assets` work best with absolute path!
 
-`src`, `dist` and `assets` are only three required
+## Configuration
+
+```js
+upload(cdn, option)
+```
+
+For `option`, valid fields are showed below
+
+### src: string
+
+Where your template files would be (with reference to local js/css files)
+
+### assets: string
+
+Where all assets (js/css/images) are, most likely the same as src property.
+
+### [dist]: string
+
+Where to emit newer template with cdn reference.
+
+Only use this when there is a need to separate origin templates with ones using cdn reference.
+
+> Happens when original templates are static, aka not produced by any building tools.
+
+### [urlCb]: (cdnUrl: string) => string
+
+Further alter cdn url here.
+
+```js
+const urlCb = input => input.replace(/^https/, 'http')
+```
+
+### [enableCache=false]: boolean
+
+Using cache to speed up, aka skip some uploading work.
+
+### [cacheLocation]: string
+
+Place to put cache file.
+
+Use this only when to want to manage cache file by VCS, which is unlikely.
+
+### [onFinish]: () => any
+
+Called when things are done.
+
+Or you can simply `await` for `upload`, and then do your own thing.
+
+### [beforeUpload]: (fileContent: string, fileLocation: string) => string
+
+_Compression_ can be done here. Two arguments are fileContent and fileLocation (with extension name of course). You need to return the compression result as string.
+
+```js
+// if you want to compress js before upload
+const UglifyJs = require('uglify-js')
+const path = require('path')
+const beforeUpload = (content, location) => {
+  if (path.extname(location) === '.js') {
+    return UglifyJs.minify(content).code
+  }
+  return content
+}
+```
+
+### [sliceLimit=10]: number
+
+Uploading files is not done by once. By using `sliceLimit`, you can limit the number of files being uploaded at once.
+
+### [files]: string[]
+
+When using, it basically means overriding `assets` field, and only use the files you provide as assets.
+
+> Should be an array of _absolute_ locations.
 
 ## License
 
