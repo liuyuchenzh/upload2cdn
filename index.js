@@ -30,11 +30,6 @@ const ASSET_TYPE = [
   'eot'
 ]
 
-// read file
-const read = location => fs.readFileSync(location, 'utf-8')
-// write file
-const write = location => content => fs.writeFileSync(location, content)
-
 // 1. gather html file
 // 2. gather production file
 // 3. upload all production file
@@ -156,7 +151,10 @@ function processCdnUrl(entries, cb) {
 }
 
 function mapSrcToDist(srcFilePath, srcRoot, distRoot) {
-  return srcFilePath.replace(srcRoot, distRoot)
+  const [file, src, dist] = [srcFilePath, srcRoot, distRoot].map(p =>
+    normalize(p)
+  )
+  return file.replace(src, dist)
 }
 
 const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp']
