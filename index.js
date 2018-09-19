@@ -73,7 +73,7 @@ function generateLocalPathReg(localPath) {
   const file = pathArr.pop()
   const regStr =
     pathArr.map(part => `\\.*?(${part})?`).join(`\\${DEFAULT_SEP}?`) +
-    `\\${DEFAULT_SEP}?` +
+    `\\${DEFAULT_SEP}` +
     file.replace(/\./, '\\.')
   return new RegExp(regStr, 'g')
 }
