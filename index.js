@@ -60,16 +60,24 @@ const log = generateLog(name)
 /**
  * produce RegExp to match local path
  * @param {string} localPath
+ * @param {string} fromPath
  * @return {RegExp}
  */
-function generateLocalPathReg(localPath) {
-  const pathArr = localPath.split(DEFAULT_SEP)
+function generateLocalPathReg(localPath, fromPath) {
+  const relativePath = path.relative(fromPath, localPath)
+  const normalRelPath = normalize(relativePath)
+  const pathArr = normalRelPath.split(DEFAULT_SEP)
   // the file must be matched exactly
-  const file = pathArr.pop()
   const regStr =
-    pathArr.map(part => `\\.*?(${part})?`).join(`\\${DEFAULT_SEP}?`) +
-    `\\${DEFAULT_SEP}` +
-    file.replace(/\./, '\\.')
+    `\\.?\\/?` +
+    pathArr
+      .map(item => {
+        if (item === '..') {
+          return '\\.\\.'
+        }
+        return item.replace('.', '\\.')
+      })
+      .join(`\\${DEFAULT_SEP}`)
   return new RegExp(regStr, 'g')
 }
 
@@ -83,12 +91,13 @@ function generateLocalPathReg(localPath) {
  */
 function simpleReplace(srcPath, distPath = srcPath) {
   const srcFile = fs.readFileSync(srcPath, 'utf-8')
+  const srcDir = path.resolve(srcPath, '..')
   return function savePair(localCdnPair) {
     const ret = localCdnPair.reduce((last, [local, cdn]) => {
       const localPath = normalize(local)
       const cdnPath = cdn
-      const localPathReg = generateLocalPathReg(localPath)
-      last = last.replace(localPathReg, match => cdnPath)
+      const localPathReg = generateLocalPathReg(localPath, normalize(srcDir))
+      last = last.replace(localPathReg, cdnPath)
       return last
     }, srcFile)
     fse.ensureFileSync(distPath)
