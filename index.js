@@ -15,21 +15,6 @@ const FILTER_OUT_DIR = [
   'node_modules',
   '.DS_Store'
 ]
-const ASSET_TYPE = [
-  'js',
-  'css',
-  'jpg',
-  'png',
-  'gif',
-  'svg',
-  'webp',
-  'woff',
-  'woff2',
-  'ttf',
-  'otf',
-  'eot',
-  'ico'
-]
 
 // 1. gather html file
 // 2. gather production file
@@ -167,8 +152,9 @@ function mapSrcToDist(srcFilePath, srcRoot, distRoot) {
   return file.replace(src, dist)
 }
 
-const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico']
 const fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot']
+const ASSET_TYPE = [...imgTypeArr, ...fontTypeArr, 'js', 'css']
 const isCss = isType('css')
 const isJs = isType('js')
 
