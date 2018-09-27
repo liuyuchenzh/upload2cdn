@@ -27,7 +27,8 @@ const ASSET_TYPE = [
   'woff2',
   'ttf',
   'otf',
-  'eot'
+  'eot',
+  'ico'
 ]
 
 // 1. gather html file
