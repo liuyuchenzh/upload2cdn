@@ -61,7 +61,7 @@ function generateLocalPathReg(localPath, fromPath) {
         if (item === '..') {
           return '\\.\\.'
         }
-        return item.replace('.', '\\.')
+        return item.replace(/\./g, '\\.')
       })
       .join(`\\${DEFAULT_SEP}`)
   return new RegExp(regStr, 'g')
