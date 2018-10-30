@@ -226,7 +226,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
 async function upload(cdn, option = {}) {
   const {
     src = resolve('src'),
-    dist = resolve('src'),
+    dist = src,
     assets = resolve('src'),
     resolve: resolveList = ['html'],
     urlCb = input => input,
