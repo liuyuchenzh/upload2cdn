@@ -6,7 +6,7 @@ const {
   parallel,
   beforeUpload: beforeProcess
 } = require('y-upload-utils')
-const name = require('./package.json').name
+const name = 'upload2cdn'
 const DEFAULT_SEP = '/'
 const FILTER_OUT_DIR = [
   '.idea',
@@ -43,6 +43,10 @@ function generateLog(name) {
 
 const log = generateLog(name)
 
+const read = location => fs.readFileSync(location, 'utf-8')
+
+const write = location => content => fs.writeFileSync(location, content)
+
 /**
  * produce RegExp to match local path
  * @param {string} localPath
@@ -76,7 +80,7 @@ function generateLocalPathReg(localPath, fromPath) {
  * @return {function}
  */
 function simpleReplace(srcPath, distPath = srcPath) {
-  const srcFile = fs.readFileSync(srcPath, 'utf-8')
+  const srcFile = read(srcPath)
   const srcDir = path.resolve(srcPath, '..')
   return function savePair(localCdnPair) {
     const ret = localCdnPair.reduce((last, [local, cdn]) => {
@@ -87,7 +91,7 @@ function simpleReplace(srcPath, distPath = srcPath) {
       return last
     }, srcFile)
     fse.ensureFileSync(distPath)
-    fs.writeFileSync(distPath, ret)
+    write(distPath)(ret)
   }
 }
 
@@ -152,7 +156,7 @@ function mapSrcToDist(srcFilePath, srcRoot, distRoot) {
   return file.replace(src, dist)
 }
 
-const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico']
+const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico', '.mp3', '.mp4']
 const fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot']
 const ASSET_TYPE = [...imgTypeArr, ...fontTypeArr, 'js', 'css']
 const isCss = isType('css')
@@ -203,6 +207,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
 /**
  * @typedef {function(string): string} urlCb
  * @typedef {function(string[]): Promise<object>} uploadFn
+ * @typedef {(content: string, location: string) => string} preProcess
  */
 
 /**
@@ -222,6 +227,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  * @param {function=} option.beforeUpload
  * @param {number=} option.sliceLimit
  * @param {string[]=} option.files
+ * @param {preProcess=} option.preProcess
  */
 async function upload(cdn, option = {}) {
   const {
@@ -233,11 +239,12 @@ async function upload(cdn, option = {}) {
     replaceInJs = true,
     onFinish = () => {},
     passToCdn,
-    enableCache = false,
+    enableCache = true,
     cacheLocation,
     beforeUpload,
     sliceLimit,
-    files = []
+    files = [],
+    preProcess = input => input
   } = option
   if (!enableCache && cacheLocation) {
     log(
@@ -288,7 +295,17 @@ async function upload(cdn, option = {}) {
   // use beforeUpload properly
   const useableCdn = beforeProcess(wrappedCdn, beforeUpload)
 
-  const { img, css, js, font } = assetsFiles
+  const { img, css, js, font, all } = assetsFiles
+
+  // preProcess all files to convert computed path to static path
+  all.forEach(filePath => {
+    const fileContent = read(filePath)
+    const newContent = preProcess(fileContent, filePath)
+    if (fileContent === newContent) {
+      return
+    }
+    write(filePath)(newContent)
+  })
 
   // upload img/font
   // find img/font in css
