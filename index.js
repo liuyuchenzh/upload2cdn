@@ -156,7 +156,7 @@ function mapSrcToDist(srcFilePath, srcRoot, distRoot) {
   return file.replace(src, dist)
 }
 
-const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico', '.mp3', '.mp4']
+const imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico', 'mp3', 'mp4']
 const fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot']
 const ASSET_TYPE = [...imgTypeArr, ...fontTypeArr, 'js', 'css']
 const isCss = isType('css')
