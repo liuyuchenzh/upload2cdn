@@ -96,7 +96,7 @@ Further alter cdn url here.
 const urlCb = input => input.replace(/^https/, 'http')
 ```
 
-### [enableCache=false]: boolean
+### [enableCache=true]: boolean
 
 Using cache to speed up, aka skip some uploading work.
 
@@ -137,6 +137,11 @@ Uploading files is not done by once. By using `sliceLimit`, you can limit the nu
 When using, it basically means overriding `assets` field, and only use the files you provide as assets.
 
 > Should be an array of _absolute_ locations.
+
+### [preProcess]: (fileContent: string, fileLocation: string) => string
+
+Give you the chance to update files' content before any further process.
+Runs at the very beginning (including all valid files in `src` and `assets`), prior to any upload related process.
 
 ## License
 
