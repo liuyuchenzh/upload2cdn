@@ -262,9 +262,8 @@ var upload = function (cdn, option) {
       };
 
       return Promise.resolve(uploadExtra()).then(function () {
-        console.log(extraPairs); // re-organize extra
+        // re-organize extra
         // in case there is dependency among them
-
         shapeExtra(extra).forEach(function (name) {
           simpleReplace(name, name, shouldReplace, loose)(processCdnUrl(Object.entries(Object.assign({}, extraPairs,
             imgAndFontPairs)), urlCb));
@@ -283,8 +282,7 @@ var upload = function (cdn, option) {
             log("all done");
           }
 
-          console.log(extraPairs); // update css + js files with cdn img/font
-
+          // update css + js files with cdn img/font
           var replaceFiles = replaceInJs ? js.concat( css, extra, extra.reduce(function (last, item) {
             last.unshift(item);
             return last;
@@ -525,9 +523,6 @@ function simpleReplace(srcPath, distPath, shouldReplace, loose) {
       var localPath = normalize(local);
       var cdnPath = cdn;
       var localPathReg = generateLocalPathReg(localPath, normalize(srcDir), loose);
-
-      if (path.extname(srcPath) === '.json' && path.extname(localPath) === '.json') ;
-
       last = last.replace(localPathReg, function (match) {
         var args = [], len = arguments.length - 1;
         while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];

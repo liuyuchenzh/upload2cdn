@@ -101,12 +101,6 @@ function simpleReplace(
         normalize(srcDir),
         loose
       )
-      if (
-        path.extname(srcPath) === '.json' &&
-        path.extname(localPath) === '.json'
-      ) {
-        // console.log(srcPath, localPath, localPathReg)
-      }
       last = last.replace(localPathReg, (match, ...args) => {
         // given [offset - 20, offset + match.length + 20]
         // decide whether to replace the local path with cdn url
@@ -389,7 +383,6 @@ async function upload(cdn, option = {}) {
   }
 
   await uploadExtra()
-  console.log(extraPairs)
 
   // re-organize extra
   // in case there is dependency among them
@@ -403,7 +396,6 @@ async function upload(cdn, option = {}) {
   })
 
   await uploadExtra()
-  console.log(extraPairs)
 
   // update css + js files with cdn img/font
   const replaceFiles = replaceInJs
