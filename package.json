@@ -1,6 +1,6 @@
 {
   "name": "upload2cdn",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "upload files to cdn",
   "main": "dist/index.js",
   "umd:main": "dist/index.umd.js",
