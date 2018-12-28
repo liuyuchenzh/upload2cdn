@@ -537,7 +537,7 @@
 	  return file.replace(src, dist);
 	}
 
-	var imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico', '.mp3', '.mp4'];
+	var imgTypeArr = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'ico', 'mp3', 'mp4'];
 	var fontTypeArr = ['woff', 'woff2', 'ttf', 'oft', 'svg', 'eot'];
 	var ASSET_TYPE = imgTypeArr.concat( fontTypeArr, ['js'], ['css']);
 	var isCss = isType('css');
