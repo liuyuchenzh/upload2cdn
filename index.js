@@ -51,21 +51,23 @@ const write = location => content => fs.writeFileSync(location, content)
  * produce RegExp to match local path
  * @param {string} localPath
  * @param {string} fromPath
+ * @param {boolean=} loose
  * @return {RegExp}
  */
-function generateLocalPathReg(localPath, fromPath) {
+function generateLocalPathReg(localPath, fromPath, loose = false) {
   const relativePath = path.relative(fromPath, localPath)
   const normalRelPath = normalize(relativePath)
   const pathArr = normalRelPath.split(DEFAULT_SEP)
+  const char = loose ? '?' : ''
   // the file must be matched exactly
   const regStr =
     `\\.?\\/?` +
     pathArr
       .map(item => {
         if (item === '..') {
-          return '\\.\\.'
+          return `\\.${char}\\.${char}`
         }
-        return item.replace(/\./g, '\\.')
+        return item.replace(/\./g, `\\.${char}`)
       })
       .join(`\\${DEFAULT_SEP}`)
   return new RegExp(regStr, 'g')
@@ -76,18 +78,47 @@ function generateLocalPathReg(localPath, fromPath) {
  * 1. make sure the range: srcPath
  * 2. provide inline path to search and to replace with: localCdnPair
  * @param {string} srcPath
- * @param {string} distPath
+ * @param {string=} distPath
+ * @param {function=} shouldReplace
+ * @param {boolean=} loose
  * @return {function}
  */
-function simpleReplace(srcPath, distPath = srcPath) {
+function simpleReplace(
+  srcPath,
+  distPath = srcPath,
+  shouldReplace = () => true,
+  loose = false
+) {
   const srcFile = read(srcPath)
   const srcDir = path.resolve(srcPath, '..')
+
   return function savePair(localCdnPair) {
     const ret = localCdnPair.reduce((last, [local, cdn]) => {
       const localPath = normalize(local)
       const cdnPath = cdn
-      const localPathReg = generateLocalPathReg(localPath, normalize(srcDir))
-      last = last.replace(localPathReg, cdnPath)
+      const localPathReg = generateLocalPathReg(
+        localPath,
+        normalize(srcDir),
+        loose
+      )
+      if (
+        path.extname(srcPath) === '.json' &&
+        path.extname(localPath) === '.json'
+      ) {
+        // console.log(srcPath, localPath, localPathReg)
+      }
+      last = last.replace(localPathReg, (match, ...args) => {
+        // given [offset - 20, offset + match.length + 20]
+        // decide whether to replace the local path with cdn url
+        const shift = 20
+        const [offset, str] = args.slice(-2)
+        const sliceStart = Math.max(0, offset - shift)
+        const sliceEnd = Math.min(last.length, offset + match.length + shift)
+        if (shouldReplace(str.slice(sliceStart, sliceEnd), localPath)) {
+          return cdnPath
+        }
+        return match
+      })
       return last
     }, srcFile)
     fse.ensureFileSync(distPath)
@@ -191,6 +222,8 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
         last.js = last.js.concat(files)
       } else if (isFont(location)) {
         last.font = last.font.concat(files)
+      } else {
+        last.extra = last.extra.concat(files)
       }
       return last
     },
@@ -199,7 +232,8 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
       img: [],
       js: [],
       font: [],
-      css: []
+      css: [],
+      extra: []
     }
   )
 }
@@ -208,6 +242,7 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  * @typedef {function(string): string} urlCb
  * @typedef {function(string[]): Promise<object>} uploadFn
  * @typedef {(content: string, location: string) => string} preProcess
+ * @typedef {(slice: string, localFile: string) => boolean} shouldReplace
  */
 
 /**
@@ -228,6 +263,10 @@ function autoGatherFilesInAsset(gatherFn, typeList) {
  * @param {number=} option.sliceLimit
  * @param {string[]=} option.files
  * @param {preProcess=} option.preProcess
+ * @param {shouldReplace=} option.shouldReplace
+ * @param {string=} option.extraTypes
+ * @param {function=} option.shapeExtra
+ * @param {boolean=} option.loose
  */
 async function upload(cdn, option = {}) {
   const {
@@ -244,7 +283,11 @@ async function upload(cdn, option = {}) {
     beforeUpload,
     sliceLimit,
     files = [],
-    preProcess = input => input
+    preProcess = input => input,
+    shouldReplace = () => true,
+    extraTypes = [],
+    shapeExtra = input => input,
+    loose = false
   } = option
   if (!enableCache && cacheLocation) {
     log(
@@ -255,6 +298,7 @@ async function upload(cdn, option = {}) {
   log('start...')
   // all assets including js/css/img
   let assetsFiles = []
+  const ALL_TYPES = [...extraTypes, ...ASSET_TYPE]
   // if providing files field use files over src
   if (files.length) {
     const isFilesValid = files.every(file => path.isAbsolute(file))
@@ -265,11 +309,11 @@ async function upload(cdn, option = {}) {
     }
     assetsFiles = autoGatherFilesInAsset(
       type => files.filter(file => path.extname(file) === `.${type}`),
-      ASSET_TYPE
+      ALL_TYPES
     )
   } else {
     const gatherFileInAssets = gatherFileIn(assets)
-    assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE)
+    assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ALL_TYPES)
   }
 
   // closure with passToCdn
@@ -295,7 +339,7 @@ async function upload(cdn, option = {}) {
   // use beforeUpload properly
   const useableCdn = beforeProcess(wrappedCdn, beforeUpload)
 
-  const { img, css, js, font, all } = assetsFiles
+  const { img, css, js, font, all, extra } = assetsFiles
 
   // preProcess all files to convert computed path to static path
   all.forEach(filePath => {
@@ -322,15 +366,69 @@ async function upload(cdn, option = {}) {
     return
   }
 
+  // update reference in extra
+  extra.forEach(name => {
+    simpleReplace(name, name, shouldReplace, loose)(
+      processCdnUrl(Object.entries(imgAndFontPairs), urlCb)
+    )
+  })
+
+  // upload extra types of files
+  let extraPairs = {}
+  const uploadExtra = async () => {
+    if (extra.length) {
+      log('uploading extra...')
+      try {
+        extraPairs = await useableCdn.upload(extra)
+      } catch (e) {
+        log('error occurred')
+        log(e, 'error')
+        return
+      }
+    }
+  }
+
+  await uploadExtra()
+  console.log(extraPairs)
+
+  // re-organize extra
+  // in case there is dependency among them
+  shapeExtra(extra).forEach(name => {
+    simpleReplace(name, name, shouldReplace, loose)(
+      processCdnUrl(
+        Object.entries({ ...extraPairs, ...imgAndFontPairs }),
+        urlCb
+      )
+    )
+  })
+
+  await uploadExtra()
+  console.log(extraPairs)
+
   // update css + js files with cdn img/font
-  const replaceFiles = replaceInJs ? [...js, ...css] : css
+  const replaceFiles = replaceInJs
+    ? [
+        ...js,
+        ...css,
+        ...extra,
+        ...extra.reduce((last, item) => {
+          last.unshift(item)
+          return last
+        }, [])
+      ]
+    : css
   replaceFiles.forEach(name => {
-    simpleReplace(name)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb))
+    simpleReplace(name, name, shouldReplace, loose)(
+      processCdnUrl(
+        Object.entries({ ...extraPairs, ...imgAndFontPairs }),
+        urlCb
+      )
+    )
   })
 
   // concat js + css + img
   log(`uploading js + css`)
-  const adjustedFiles = [...js, ...css, ...img]
+  const adjustedFiles = all
   const findFileInRoot = gatherFileIn(src)
   const tplFiles = resolveList.reduce((last, type) => {
     last = last.concat(findFileInRoot(type))
@@ -346,9 +444,12 @@ async function upload(cdn, option = {}) {
   }
   const localCdnPair = Object.entries(jsCssImgPair)
   tplFiles.forEach(filePath => {
-    simpleReplace(filePath, mapSrcToDist(filePath, src, dist))(
-      processCdnUrl(localCdnPair, urlCb)
-    )
+    simpleReplace(
+      filePath,
+      mapSrcToDist(filePath, src, dist),
+      shouldReplace,
+      loose
+    )(processCdnUrl(localCdnPair, urlCb))
   })
   // run onFinish if it is a valid function
   onFinish()

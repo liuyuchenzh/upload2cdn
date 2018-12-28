@@ -200,6 +200,7 @@
 	 * @typedef {function(string): string} urlCb
 	 * @typedef {function(string[]): Promise<object>} uploadFn
 	 * @typedef {(content: string, location: string) => string} preProcess
+	 * @typedef {(slice: string, localFile: string) => boolean} shouldReplace
 	 */
 
 	/**
@@ -220,6 +221,10 @@
 	 * @param {number=} option.sliceLimit
 	 * @param {string[]=} option.files
 	 * @param {preProcess=} option.preProcess
+	 * @param {shouldReplace=} option.shouldReplace
+	 * @param {string=} option.extraTypes
+	 * @param {function=} option.shapeExtra
+	 * @param {boolean=} option.loose
 	 */
 	var upload = function (cdn, option) {
 	  if ( option === void 0 ) option = {};
@@ -228,46 +233,94 @@
 	    var _exit = false;
 
 	    function _temp4(_result) {
-	      var _exit2 = false;
 	      if (_exit) { return _result; }
+	      // update reference in extra
+	      extra.forEach(function (name) {
+	        simpleReplace(name, name, shouldReplace, loose)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb));
+	      }); // upload extra types of files
 
-	      function _temp2(_result2) {
-	        if (_exit2) { return _result2; }
-	        var localCdnPair = Object.entries(jsCssImgPair);
-	        tplFiles.forEach(function (filePath) {
-	          simpleReplace(filePath, mapSrcToDist(filePath, src, dist))(processCdnUrl(localCdnPair, urlCb));
-	        }); // run onFinish if it is a valid function
+	      var extraPairs = {};
 
-	        onFinish();
-	        log("all done");
-	      }
+	      var uploadExtra = function () {
+	        try {
+	          var _temp6 = function () {
+	            if (extra.length) {
+	              log('uploading extra...');
 
-	      // update css + js files with cdn img/font
-	      var replaceFiles = replaceInJs ? js.concat( css) : css;
-	      replaceFiles.forEach(function (name) {
-	        simpleReplace(name)(processCdnUrl(Object.entries(imgAndFontPairs), urlCb));
-	      }); // concat js + css + img
+	              var _temp5 = _catch(function () {
+	                return Promise.resolve(useableCdn.upload(extra)).then(function (_useableCdn$upload3) {
+	                  extraPairs = _useableCdn$upload3;
+	                });
+	              }, function (e) {
+	                log('error occurred');
+	                log(e, 'error');
+	              });
 
-	      log("uploading js + css");
-	      var adjustedFiles = js.concat( css, img);
-	      var findFileInRoot = gatherFileIn(src);
-	      var tplFiles = resolveList.reduce(function (last, type) {
-	        last = last.concat(findFileInRoot(type));
-	        return last;
-	      }, []);
-	      var jsCssImgPair;
+	              if (_temp5 && _temp5.then) { return _temp5.then(function () {}); }
+	            }
+	          }();
 
-	      var _temp = _catch(function () {
-	        return Promise.resolve(useableCdn.upload(adjustedFiles)).then(function (_useableCdn$upload2) {
-	          jsCssImgPair = _useableCdn$upload2;
+	          return Promise.resolve(_temp6 && _temp6.then ? _temp6.then(function () {}) : void 0);
+	        } catch (e) {
+	          return Promise.reject(e);
+	        }
+	      };
+
+	      return Promise.resolve(uploadExtra()).then(function () {
+	        console.log(extraPairs); // re-organize extra
+	        // in case there is dependency among them
+
+	        shapeExtra(extra).forEach(function (name) {
+	          simpleReplace(name, name, shouldReplace, loose)(processCdnUrl(Object.entries(Object.assign({}, extraPairs,
+	            imgAndFontPairs)), urlCb));
 	        });
-	      }, function (e) {
-	        log('error occurred');
-	        log(e, 'error');
-	        _exit2 = true;
-	      });
+	        return Promise.resolve(uploadExtra()).then(function () {
+	          var _exit2 = false;
 
-	      return _temp && _temp.then ? _temp.then(_temp2) : _temp2(_temp);
+	          function _temp2(_result2) {
+	            if (_exit2) { return _result2; }
+	            var localCdnPair = Object.entries(jsCssImgPair);
+	            tplFiles.forEach(function (filePath) {
+	              simpleReplace(filePath, mapSrcToDist(filePath, src, dist), shouldReplace, loose)(processCdnUrl(localCdnPair, urlCb));
+	            }); // run onFinish if it is a valid function
+
+	            onFinish();
+	            log("all done");
+	          }
+
+	          console.log(extraPairs); // update css + js files with cdn img/font
+
+	          var replaceFiles = replaceInJs ? js.concat( css, extra, extra.reduce(function (last, item) {
+	            last.unshift(item);
+	            return last;
+	          }, [])) : css;
+	          replaceFiles.forEach(function (name) {
+	            simpleReplace(name, name, shouldReplace, loose)(processCdnUrl(Object.entries(Object.assign({}, extraPairs,
+	              imgAndFontPairs)), urlCb));
+	          }); // concat js + css + img
+
+	          log("uploading js + css");
+	          var adjustedFiles = all;
+	          var findFileInRoot = gatherFileIn(src);
+	          var tplFiles = resolveList.reduce(function (last, type) {
+	            last = last.concat(findFileInRoot(type));
+	            return last;
+	          }, []);
+	          var jsCssImgPair;
+
+	          var _temp = _catch(function () {
+	            return Promise.resolve(useableCdn.upload(adjustedFiles)).then(function (_useableCdn$upload2) {
+	              jsCssImgPair = _useableCdn$upload2;
+	            });
+	          }, function (e) {
+	            log('error occurred');
+	            log(e, 'error');
+	            _exit2 = true;
+	          });
+
+	          return _temp && _temp.then ? _temp.then(_temp2) : _temp2(_temp);
+	        });
+	      });
 	    }
 
 	    var src = option.src; if ( src === void 0 ) src = resolve('src');
@@ -284,6 +337,10 @@
 	    var sliceLimit = option.sliceLimit;
 	    var files = option.files; if ( files === void 0 ) files = [];
 	    var preProcess = option.preProcess; if ( preProcess === void 0 ) preProcess = function (input) { return input; };
+	    var shouldReplace = option.shouldReplace; if ( shouldReplace === void 0 ) shouldReplace = function () { return true; };
+	    var extraTypes = option.extraTypes; if ( extraTypes === void 0 ) extraTypes = [];
+	    var shapeExtra = option.shapeExtra; if ( shapeExtra === void 0 ) shapeExtra = function (input) { return input; };
+	    var loose = option.loose; if ( loose === void 0 ) loose = false;
 
 	    if (!enableCache && cacheLocation) {
 	      log("WARNING! 'cacheLocation' provided while haven't set 'enableCache' to true");
@@ -292,7 +349,8 @@
 
 	    log('start...'); // all assets including js/css/img
 
-	    var assetsFiles = []; // if providing files field use files over src
+	    var assetsFiles = [];
+	    var ALL_TYPES = extraTypes.concat( ASSET_TYPE); // if providing files field use files over src
 
 	    if (files.length) {
 	      var isFilesValid = files.every(function (file) { return path.isAbsolute(file); });
@@ -301,10 +359,10 @@
 	        return Promise.resolve(log("WARNING! 'files' filed contains non-absolute path! Replace with absolute ones!"));
 	      }
 
-	      assetsFiles = autoGatherFilesInAsset(function (type) { return files.filter(function (file) { return path.extname(file) === ("." + type); }); }, ASSET_TYPE);
+	      assetsFiles = autoGatherFilesInAsset(function (type) { return files.filter(function (file) { return path.extname(file) === ("." + type); }); }, ALL_TYPES);
 	    } else {
 	      var gatherFileInAssets = gatherFileIn(assets);
-	      assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ASSET_TYPE);
+	      assetsFiles = autoGatherFilesInAsset(gatherFileInAssets, ALL_TYPES);
 	    } // closure with passToCdn
 
 
@@ -331,7 +389,8 @@
 	    var css = assetsFiles.css;
 	    var js = assetsFiles.js;
 	    var font = assetsFiles.font;
-	    var all = assetsFiles.all; // preProcess all files to convert computed path to static path
+	    var all = assetsFiles.all;
+	    var extra = assetsFiles.extra; // preProcess all files to convert computed path to static path
 
 	    all.forEach(function (filePath) {
 	      var fileContent = read(filePath);
@@ -422,21 +481,25 @@
 	 * produce RegExp to match local path
 	 * @param {string} localPath
 	 * @param {string} fromPath
+	 * @param {boolean=} loose
 	 * @return {RegExp}
 	 */
 
 
-	function generateLocalPathReg(localPath, fromPath) {
+	function generateLocalPathReg(localPath, fromPath, loose) {
+	  if ( loose === void 0 ) loose = false;
+
 	  var relativePath = path.relative(fromPath, localPath);
 	  var normalRelPath = normalize(relativePath);
-	  var pathArr = normalRelPath.split(DEFAULT_SEP); // the file must be matched exactly
+	  var pathArr = normalRelPath.split(DEFAULT_SEP);
+	  var char = loose ? '?' : ''; // the file must be matched exactly
 
 	  var regStr = "\\.?\\/?" + pathArr.map(function (item) {
 	    if (item === '..') {
-	      return '\\.\\.';
+	      return ("\\." + char + "\\." + char);
 	    }
 
-	    return item.replace(/\./g, '\\.');
+	    return item.replace(/\./g, ("\\." + char));
 	  }).join(("\\" + DEFAULT_SEP));
 	  return new RegExp(regStr, 'g');
 	}
@@ -445,13 +508,17 @@
 	 * 1. make sure the range: srcPath
 	 * 2. provide inline path to search and to replace with: localCdnPair
 	 * @param {string} srcPath
-	 * @param {string} distPath
+	 * @param {string=} distPath
+	 * @param {function=} shouldReplace
+	 * @param {boolean=} loose
 	 * @return {function}
 	 */
 
 
-	function simpleReplace(srcPath, distPath) {
+	function simpleReplace(srcPath, distPath, shouldReplace, loose) {
 	  if ( distPath === void 0 ) distPath = srcPath;
+	  if ( shouldReplace === void 0 ) shouldReplace = function () { return true; };
+	  if ( loose === void 0 ) loose = false;
 
 	  var srcFile = read(srcPath);
 	  var srcDir = path.resolve(srcPath, '..');
@@ -462,8 +529,29 @@
 
 	      var localPath = normalize(local);
 	      var cdnPath = cdn;
-	      var localPathReg = generateLocalPathReg(localPath, normalize(srcDir));
-	      last = last.replace(localPathReg, cdnPath);
+	      var localPathReg = generateLocalPathReg(localPath, normalize(srcDir), loose);
+
+	      if (path.extname(srcPath) === '.json' && path.extname(localPath) === '.json') ;
+
+	      last = last.replace(localPathReg, function (match) {
+	        var args = [], len = arguments.length - 1;
+	        while ( len-- > 0 ) args[ len ] = arguments[ len + 1 ];
+
+	        // given [offset - 20, offset + match.length + 20]
+	        // decide whether to replace the local path with cdn url
+	        var shift = 20;
+	        var ref = args.slice(-2);
+	        var offset = ref[0];
+	        var str = ref[1];
+	        var sliceStart = Math.max(0, offset - shift);
+	        var sliceEnd = Math.min(last.length, offset + match.length + shift);
+
+	        if (shouldReplace(str.slice(sliceStart, sliceEnd), localPath)) {
+	          return cdnPath;
+	        }
+
+	        return match;
+	      });
 	      return last;
 	    }, srcFile);
 	    fse.ensureFileSync(distPath);
@@ -573,6 +661,8 @@
 	      last.js = last.js.concat(files);
 	    } else if (isFont(location)) {
 	      last.font = last.font.concat(files);
+	    } else {
+	      last.extra = last.extra.concat(files);
 	    }
 
 	    return last;
@@ -581,7 +671,8 @@
 	    img: [],
 	    js: [],
 	    font: [],
-	    css: []
+	    css: [],
+	    extra: []
 	  });
 	}
 

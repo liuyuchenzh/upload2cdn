@@ -143,6 +143,23 @@ When using, it basically means overriding `assets` field, and only use the files
 Give you the chance to update files' content before any further process.
 Runs at the very beginning (including all valid files in `src` and `assets`), prior to any upload related process.
 
+### [extraTypes]: string[]
+
+Extra types needed to cdn. Like `json` (Do not prefix with `.`)
+
+### [shouldReplace]: (slice: string, fileLocation: string) => boolean
+
+Should replace the matching local path with the cdn url.
+`slice` is a 20 characters + matched path + 20 characters
+
+### [shapeExtra]: (extra: string[]) => string[]
+
+If there are `extraTypes`, then will try to upload them twice.
+The meaning of the second time is to handle the potential dependency among them.
+And `shapeExtra` gives you a chance to change the order of those extra files.
+
+> Probably do not need to use this.
+
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
