@@ -399,16 +399,8 @@ async function upload(cdn, option = {}) {
 
   // update css + js files with cdn img/font
   const replaceFiles = replaceInJs
-    ? [
-        ...js,
-        ...css,
-        ...extra,
-        ...extra.reduce((last, item) => {
-          last.unshift(item)
-          return last
-        }, [])
-      ]
-    : css
+    ? [...js, ...css, ...extra]
+    : [...css, ...extra]
   replaceFiles.forEach(name => {
     simpleReplace(name, name, shouldReplace, loose)(
       processCdnUrl(

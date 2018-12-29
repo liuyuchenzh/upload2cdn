@@ -283,10 +283,7 @@ var upload = function (cdn, option) {
           }
 
           // update css + js files with cdn img/font
-          var replaceFiles = replaceInJs ? js.concat( css, extra, extra.reduce(function (last, item) {
-            last.unshift(item);
-            return last;
-          }, [])) : css;
+          var replaceFiles = replaceInJs ? js.concat( css, extra) : css.concat( extra);
           replaceFiles.forEach(function (name) {
             simpleReplace(name, name, shouldReplace, loose)(processCdnUrl(Object.entries(Object.assign({}, extraPairs,
               imgAndFontPairs)), urlCb));
