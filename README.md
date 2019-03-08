@@ -1,5 +1,7 @@
 # upload2cdn
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/liuyuchenzh/upload2cdn.svg)](https://greenkeeper.io/)
+
 ## Intro
 
 Simple tool to upload files to cdn
