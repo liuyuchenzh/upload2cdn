@@ -96,6 +96,25 @@ Further alter cdn url here.
 const urlCb = input => input.replace(/^https/, 'http')
 ```
 
+### [passToCdn]: object
+
+Extra config to pass to `cdn.upload` method. Something Like `cdn.upload(location, passToCdn)`.
+
+```js
+const cdn = require("any-cdn-package");
+// If the cdn package can set up https through a config object
+const passToCdn = {
+  https: true
+}
+cdn.upload(files, passToCdn);
+
+// then you can use passToCdn object to turn on https just like this
+const { upload } = require("upload2cdn");
+upload(cdn, {
+  passToCdn
+});
+```
+
 ### [enableCache=true]: boolean
 
 Using cache to speed up, aka skip some uploading work.
