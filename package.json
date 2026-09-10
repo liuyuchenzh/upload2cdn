@@ -16,7 +16,7 @@
   "repository": "https://github.com/liuyuchenzh/upload2cdn.git",
   "bugs": "https://github.com/liuyuchenzh/upload2cdn.git/issues",
   "devDependencies": {
-    "microbundle": "0.12.3"
+    "microbundle": "0.15.1"
   },
   "scripts": {
     "build": "microbundle --target node",
